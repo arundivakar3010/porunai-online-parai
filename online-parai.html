@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ta">
+<head>
+  <meta charset="UTF-8">
+  <title>பழகுவோம் பறை</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: 'Noto Sans Tamil', sans-serif;
+      color: white;
+      background: linear-gradient(135deg, #1e90ff, #000);
+    }
+
+    header {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:15px 20px;
+    }
+
+    .logo {
+      height:100px;
+    }
+
+    .title {
+      font-size:22px;
+      font-weight:bold;
+      margin-right: 5%;
+    }
+
+    .settings {
+      font-size:30px;
+      cursor:pointer;
+    }
+
+    .container {
+      text-align:center;
+      padding:20px;
+    }
+
+    .parai-img {
+      width:260px;
+      border-radius:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .pads {
+      display:flex;
+      justify-content:center;
+      gap:20px;
+      margin-top:20px;
+    }
+
+    .pad {
+      width:120px;
+      height:120px;
+      border-radius:20px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:22px;
+      font-weight:bold;
+      background:rgba(255,255,255,0.1);
+      transition:0.08s;
+    }
+
+    .pad.active {
+      transform:scale(1.15);
+      background:#00c3ff;
+      box-shadow:0 0 25px #00c3ff;
+    }
+
+    .card {
+      margin-top:20px;
+      padding:20px;
+      background:rgba(255,255,255,0.08);
+      border-radius:15px;
+      backdrop-filter:blur(10px);
+    }
+
+    /* Modal */
+    .modal {
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      display:none;
+      justify-content:center;
+      align-items:center;
+      background:rgba(0,0,0,0.6);
+    }
+
+    .modal-box {
+      background:#111;
+      padding:20px;
+      border-radius:10px;
+      text-align:center;
+    }
+
+    input {
+      padding:8px;
+      margin:10px;
+      font-size:16px;
+    }
+
+    button {
+      padding:8px 15px;
+      border:none;
+      background:#00c3ff;
+      color:white;
+      border-radius:5px;
+      cursor:pointer;
+    }
+
+    .toast {
+      position:fixed;
+      left:50%;
+      width: fit-content;
+      transform:translateX(-50%);
+      background:rgba(0,0,0,0.85);
+      color:#fff;
+      padding:12px 24px;
+      border-radius:10px;
+      font-size:16px;
+      opacity:0;
+      transition:opacity 0.3s;
+      pointer-events:none;
+      z-index:100;
+    }
+
+    .toast.show {
+      opacity:1;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <img src="https://raw.githubusercontent.com/arundivakar3010/porunai-online-parai/aac869b9cff82f179d662d33a9cb55ea86a08937/porunai-watermark.png" class="logo">
+  <div class="title">பழகுவோம் பறை</div>
+  <div class="settings" onclick="openModal()" title="Change Keys">⚙️</div>
+</header>
+
+<div class="container">
+
+  <img src="https://raw.githubusercontent.com/arundivakar3010/porunai-online-parai/main/thappu-image.jpg" class="parai-img">
+
+  <div class="toast" id="toast">Press T or K on your keyboard to play Parai</div>
+
+  <div class="pads">
+    <div class="pad" id="thaPad" >த / THA</div>
+    <div class="pad" id="kuPad" >கு / KU</div>
+  </div>
+  <div class="card">
+    <p>
+      <b>அடிக் குறிப்புகள்</b><br><br>
+      த கு கு த / THA KU KU THA<br><br>
+      த கு கு தகுகு / THA KU KU THAKUKU<br><br>
+      குகு தகுகு த குதகுத/ KUKU THAKUKU THA KUTHA KUTHA<br><br>
+      தகுகு தகுகு / THAKUKU THAKUKU<br><br>
+      கு தகு தா தகு தா தகு தா குத குத / KU THAKU THAA THAKU THAA THAKU THAA KUTHA KUTHA
+    </p>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3>Settings</h3>
+    THA: <input id="thaKey"><br>
+    KU: <input id="kuKey"><br>
+    <button onclick="saveSettings()">Save</button>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  let thaKey = localStorage.getItem("thaKey") || "t";
+  let kuKey = localStorage.getItem("kuKey") || "k";
+
+  const thaInput = document.getElementById("thaKey");
+  const kuInput = document.getElementById("kuKey");
+
+  if (thaInput && kuInput) {
+    thaInput.value = thaKey;
+    kuInput.value = kuKey;
+  }
+
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  let thaBuffer, kuBuffer;
+
+  const thaUrl = "https://raw.githubusercontent.com/arundivakar3010/porunai-online-parai/main/Tha-Sound.m4a";
+  const kuUrl  = "https://raw.githubusercontent.com/arundivakar3010/porunai-online-parai/main/Ku-sound.m4a";
+
+  async function loadSound(url) {
+    const res = await fetch(url);
+    const buffer = await res.arrayBuffer();
+    return await audioCtx.decodeAudioData(buffer);
+  }
+
+  async function init() {
+    thaBuffer = await loadSound(thaUrl);
+    kuBuffer = await loadSound(kuUrl);
+    console.log("Audio Loaded ✅");
+  }
+
+  init();
+
+  function play(buffer) {
+    if (!buffer) return;
+
+    if (audioCtx.state === "suspended") {
+      audioCtx.resume();
+    }
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start(0);
+  }
+
+  function animate(id) {
+    const el = document.getElementById(id);
+    el.classList.add("active");
+    setTimeout(() => el.classList.remove("active"), 80);
+  }
+
+  let toastTimer;
+  function showToast() {
+    const toast = document.getElementById("toast");
+    toast.textContent = "Press " + thaKey.toUpperCase() + " or " + kuKey.toUpperCase() + " on your keyboard to play Parai";
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 5000);
+  }
+
+  document.querySelectorAll(".pad").forEach(pad => {
+    pad.addEventListener("click", showToast);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    const key = e.key.toLowerCase();
+
+    if (key === thaKey) {
+      play(thaBuffer);
+      animate("thaPad");
+    }
+
+    if (key === kuKey) {
+      play(kuBuffer);
+      animate("kuPad");
+    }
+  });
+
+  window.openModal = function() {
+    document.getElementById("modal").style.display = "flex";
+  }
+
+  window.saveSettings = function() {
+    thaKey = document.getElementById("thaKey").value.toLowerCase();
+    kuKey = document.getElementById("kuKey").value.toLowerCase();
+
+    localStorage.setItem("thaKey", thaKey);
+    localStorage.setItem("kuKey", kuKey);
+
+    document.getElementById("modal").style.display = "none";
+  }
+
+});
+</script>
+
+</body>
+</html>
